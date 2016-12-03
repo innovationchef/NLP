@@ -1,11 +1,13 @@
 import os
 import sys
 import copy
+import math
 import numpy as np
 from numpy import dot
 from numpy.linalg import norm
 from porter_stemmer import PorterStemmer
 from stop_words import get_stop_words
+from scipy import linalg
 
 class VectorSpace:
 	"""     	doc1	doc2	doc3	doc4	....    docN
@@ -23,18 +25,23 @@ class VectorSpace:
 	STOP_WORDS_FILE = '%s/../data/english.stop' % os.path.dirname(os.path.realpath(__file__))
 	global stopwords
 	stopwords = get_stop_words('en')
-	vector_space = []
-	allwords_to_index_dict = [] 
 	global unique_vocabulary_list
 	unique_vocabulary_list = []
-	
+
+	vector_space = []
+	allwords_to_index_dict = [] 
+	matrix=[]
+	reconstructedMatrix = []
 
 	def __init__(self, documents = []):
 		self.vector_space = []
+		self.matrix=[]
+		self.reconstructedMatrix = []
 		if len(documents) > 0:
 			self.build_vec_space(documents)
 
 	def build_vec_space(self, documents):
+		global p
 		"""A vector space is basically a set of document vectors stacked vertically"""
 		"""Documents are a list of strings that is passed here."""
 
@@ -42,15 +49,15 @@ class VectorSpace:
 		self.allwords_to_index_dict  = self.get_dict_of_unique_words(documents)
 
 		"""for vec(doc) We need to create a null vector and put the frequencies corresponding to each term"""
-		matrix = [self.make_vector(document) for document in documents]
+		self.matrix = [self.make_vector(document) for document in documents]
 		"""
 		Now we have this -->
 			vec(doc1) = 5*term1 + 8*term2 + 9*term3 + ..... + 5*termM
 			vec(doc2) = 2*term1 + 6*term2 + 7*term3 + ..... + 1*termM
 			vec(doc3) = 7*term1 + 2*term2 + 4*term3 + ..... + 7*termM
 		"""
-		print np.shape(matrix)
-		self.vector_space = matrix
+		self.matrix =  np.array(self.matrix).transpose()
+		self.vector_space = self.matrix
 
 	def get_dict_of_unique_words(self, document_list):
 		""" create the keyword associated to the position of the elements within the document vectors """
@@ -104,17 +111,17 @@ class VectorSpace:
 		string = string.lower()
 		return string
 
-	def relatedness(self, document_id):
-		""" find documents that are related to the document indexed by passed Id within the document Vectors"""
-		ratings = [self.cosine(self.vector_space[document_id], document_vector) for document_vector in self.vector_space]
-		# ratings.sort(reverse = True)
-		return ratings
+	# def relatedness(self, document_id):
+	# 	""" find documents that are related to the document indexed by passed Id within the document Vectors"""
+	# 	ratings = [self.cosine(self.vector_space[document_id], document_vector) for document_vector in self.vector_space]
+	# 	# ratings.sort(reverse = True)
+	# 	return ratings
 
 	def search(self, searchList):
 		""" search for documents that match based on a list of terms """
 		queryVector = self.build_query_vector(searchList)
 
-		ratings = [self.cosine(queryVector, documentVector) for documentVector in self.vector_space]
+		ratings = [self.cosine(queryVector, documentVector) for documentVector in self.reconstructedMatrix]
 		# ratings.sort(reverse=True)
 		return ratings
 
@@ -143,11 +150,24 @@ def create_docString(i):
 	fname = "cancer_data/" + str(i) + ".txt"
 	return fname
 
-
+global p
+p = 199
 doc = []
-for i in range(0,100):
+for i in range(0,p):
 	with open(create_docString(i), 'r') as the_file:
 		data = the_file.read()
 	doc.append(data)
 MyVSpace = VectorSpace(doc)
-# print MyVSpace.search(['chu', 'cancer', 'virtual'])
+vspaceMat =  MyVSpace.matrix
+U, s, V = np.linalg.svd(vspaceMat, full_matrices=True)
+# print U.shape, V.shape, s.shape
+newShape = int(math.floor((0.75*p)))
+rows = s.shape[0]
+for index in xrange(newShape, rows):
+    s[index] = 0 
+
+reconstructedMatrix= dot(dot(U,linalg.diagsvd(s,len(vspaceMat),len(V))),V)
+
+MyVSpace.reconstructedMatrix = reconstructedMatrix.transpose()
+# print linalg.eig(np.array(s))
+print np.max(MyVSpace.search(['HPV', 'treatment']))

@@ -5,7 +5,6 @@ import numpy as np
 from numpy import dot
 from numpy.linalg import norm
 from porter_stemmer import PorterStemmer
-from stop_words import get_stop_words
 
 class VectorSpace:
 	"""     	doc1	doc2	doc3	doc4	....    docN
@@ -20,14 +19,12 @@ class VectorSpace:
 	The document vectors are --> vec(doc1) = 5*term1 + 2*term2 + 7*term3 + ..... + 0*termM
 	If a term occurs in the document, then the value in the vector is non-zero.
 	"""
-	STOP_WORDS_FILE = '%s/../data/english.stop' % os.path.dirname(os.path.realpath(__file__))
-	global stopwords
-	stopwords = get_stop_words('en')
 	vector_space = []
-	allwords_to_index_dict = [] 
+	allwords_to_index_dict = []
+	global stopwords 
 	global unique_vocabulary_list
 	unique_vocabulary_list = []
-	
+	stopwords = ['a', 'the']
 
 	def __init__(self, documents = []):
 		self.vector_space = []
@@ -49,7 +46,7 @@ class VectorSpace:
 			vec(doc2) = 2*term1 + 6*term2 + 7*term3 + ..... + 1*termM
 			vec(doc3) = 7*term1 + 2*term2 + 4*term3 + ..... + 7*termM
 		"""
-		print np.shape(matrix)
+		# print np.shape(matrix)
 		self.vector_space = matrix
 
 	def get_dict_of_unique_words(self, document_list):
@@ -86,9 +83,9 @@ class VectorSpace:
 		clean_word_list = self.remove_stop_words(tokenised_vocabulary_list)
 		return clean_word_list
 
-	def remove_stop_words(self, enlist):
+	def remove_stop_words(self, list):
 		""" Remove common words which have no search value """
-		return [word for word in enlist if word not in stopwords ]
+		return [word for word in list if word not in stopwords ]
 
 	def tokenise(self, string):
 		""" break string up into tokens and stem words """
