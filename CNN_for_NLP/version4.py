@@ -88,30 +88,6 @@ with graph.as_default():
 	'''ACTUAL TRAINING'''
 	train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
 
-	'''TEST QUERY'''
-	test_query = tf.placeholder(tf.float32, Q_input_shape, name="test_query")
-	_test_query = tf.expand_dims(test_query, -3)
-	# Convolution Layer --> Apply nonlinearity --> Maxpooling over the outputs --> "query semantic vector representation"
-	Q_test_conv = tf.nn.conv2d(_test_query, W_c,strides=[1, 1, 1, 1],padding="VALID",name="conv")
-	Q_test_h = tf.nn.tanh(tf.nn.bias_add(Q_test_conv, b_c), name="tanh")
-	Q_test_pooled = tf.nn.max_pool(Q_test_h, ksize=[1, 1, Q_sentence_size - filter_size + 1, 1], strides=[1, 1, 1, 1],padding='VALID',name="pool")
-	Q_test_h_pool_flat = tf.reshape(Q_test_pooled, [batch_size, n_maxPool])	
-	test_query_sem = tf.nn.xw_plus_b(Q_test_h_pool_flat, W_s0, b_s0)
-	'''TEST DOC'''
-	test_docs = tf.placeholder(tf.float32, shape=[n_docs, batch_size, D_sentence_size, n_embedding], name="test_docs")
-	_test_docs = tf.expand_dims(test_docs, -3)
-	test_conv = [tf.nn.conv2d(_test_docs[i], W[i],strides=[1, 1, 1, 1],padding="VALID",name="conv") for i in range(n_docs)]
-	test_h = [tf.nn.tanh(tf.nn.bias_add(test_conv[i], b[i]), name="tanh") for i in range(n_docs)]
-	test_pooled = [tf.nn.max_pool(test_h[i], ksize=[1, 1, D_sentence_size - filter_size + 1, 1], strides=[1, 1, 1, 1],padding='VALID',name="pool") for i in range(n_docs)]
-	test_h_pool_flat = [tf.reshape(test_pooled[i], [batch_size, n_maxPool]) for i in range(n_docs)]	
-	docs_sem = [tf.nn.xw_plus_b(test_h_pool_flat[i], W_s[i], b_s[i]) for i in range(n_docs)]
-	"""TEST CALCULATIONS"""
-	_test_cosines = list()
-	for i in range(n_docs): 		
-		similarity = cosine(query_sem, docs_sem[i])
-		_test_cosines.append(similarity)
-	test_cosines = tf.reshape(_test_cosines, [-1])
-	test_logits = tf.reshape(tf.nn.softmax((test_cosines)), [n_docs,1])
 	"""RESULTS"""
 	init = tf.global_variables_initializer()
 	saver = tf.train.Saver()
@@ -135,15 +111,15 @@ with tf.Session(graph=graph) as session:
 	for i in range(sample_size):
 		feed_dict = {query: Qs[i], packed_docs: Ns[i], relevance:Rs[i]}
 		_ = session.run([train_step], feed_dict=feed_dict)
-	save_path = saver.save(session, "/home/lohani/Desktop/latest/model.model")
+	save_path = saver.save(session, "/home/lohani/Desktop/new_latest/model.model")
 	print("Model saved in file: %s" % save_path)
 
 print "starting testing session"
 with tf.Session(graph=graph) as session:
 	session.run(init)
 	print('Initialized')
-	saver.restore(session, "/home/lohani/Desktop/latest/model.model")
-	feed_dict = {test_query: Qs[0], test_docs: Ns[0]}
-	prediction = session.run([test_logits], feed_dict=feed_dict)
-
+	saver.restore(session, "/home/lohani/Desktop/new_latest/model.model")
+	test_feed_dict = {query: Qs[i], packed_docs: Ns[i]}
+	result = session.run([logits], feed_dict=test_feed_dict)
+	print result
 
